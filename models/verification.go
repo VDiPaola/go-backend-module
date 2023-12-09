@@ -1,4 +1,4 @@
-package models
+package module_models
 
 type Code struct {
 	Value     string `gorm:"unique"`

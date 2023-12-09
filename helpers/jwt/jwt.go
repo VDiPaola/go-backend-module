@@ -1,4 +1,4 @@
-package jwt
+package module_jwt
 
 import (
 	"strconv"

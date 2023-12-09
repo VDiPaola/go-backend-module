@@ -1,4 +1,4 @@
-package encryption
+package module_encryption
 
 import (
 	"crypto/aes"
