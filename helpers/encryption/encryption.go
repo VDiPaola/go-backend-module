@@ -22,8 +22,7 @@ func EncryptAES(stringToEncrypt string, keyString string) (encryptedString strin
 		panic(err.Error())
 	}
 
-	//Create a new GCM - https://en.wikipedia.org/wiki/Galois/Counter_Mode
-	//https://golang.org/pkg/crypto/cipher/#NewGCM
+	//Create a new GCM
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
 		panic(err.Error())

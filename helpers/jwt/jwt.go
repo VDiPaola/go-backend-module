@@ -1,9 +1,6 @@
 package jwt
 
 import (
-	"boilerplate/backend/database"
-	"boilerplate/backend/models"
-	"os"
 	"strconv"
 	"time"
 
@@ -17,12 +14,11 @@ import (
 	"google.golang.org/api/option"
 )
 
-func CheckToken(c *fiber.Ctx) (*jwt.Token, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
+func CheckToken(c *fiber.Ctx, jwtSecret string) (*jwt.Token, error) {
 	//get jwt cookie
 	cookie := c.Cookies("jwt")
 
-	//this checks that token is valid idk how it works tho
+	//checks token is valid
 	token, err := jwt.ParseWithClaims(cookie,
 		&jwt.StandardClaims{},
 		func(token *jwt.Token) (interface{}, error) {
@@ -40,12 +36,11 @@ func GetClaims(t *jwt.Token) *jwt.StandardClaims {
 	return t.Claims.(*jwt.StandardClaims)
 }
 
-func SetToken(c *fiber.Ctx, id uint) error {
-	jwtSecret := os.Getenv("JWT_SECRET")
+func SetToken(c *fiber.Ctx, id uint, jwtSecret string, expiresIn time.Duration) error {
 	//JWT token
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 		Issuer:    strconv.FormatUint(uint64(id), 10),
-		ExpiresAt: jwt.At(time.Now().Add(time.Hour * 24)),
+		ExpiresAt: jwt.At(time.Now().Add(expiresIn)),
 		IssuedAt:  jwt.Now(),
 	})
 
@@ -55,17 +50,17 @@ func SetToken(c *fiber.Ctx, id uint) error {
 		return err
 	}
 
-	SetCookie(c, token)
+	SetCookie(c, token, expiresIn)
 
 	return nil
 }
 
-func SetCookie(c *fiber.Ctx, token string) error {
+func SetCookie(c *fiber.Ctx, token string, expiresIn time.Duration) error {
 	//set cookie
 	cookie := &fiber.Cookie{
 		Name:     "jwt",
 		Value:    token,
-		Expires:  time.Now().Add(time.Hour * 24),
+		Expires:  time.Now().Add(expiresIn),
 		HTTPOnly: true,
 	}
 	c.Cookie(cookie)
@@ -75,12 +70,12 @@ func SetCookie(c *fiber.Ctx, token string) error {
 
 //GOOGLE JWT
 
-func SetTokenGoogle(c *fiber.Ctx, token *oauth2.Tokeninfo) error {
-	jwtSecret := os.Getenv("JWT_SECRET")
+func SetTokenGoogle(c *fiber.Ctx, token *oauth2.Tokeninfo, jwtSecret string) error {
 	//JWT token
+	expiresDuration := time.Duration(token.ExpiresIn)
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 		Issuer:    token.UserId,
-		ExpiresAt: jwt.At(time.Now().Add(time.Second * time.Duration(token.ExpiresIn))),
+		ExpiresAt: jwt.At(time.Now().Add(expiresDuration)),
 		IssuedAt:  jwt.Now(),
 	})
 
@@ -90,12 +85,12 @@ func SetTokenGoogle(c *fiber.Ctx, token *oauth2.Tokeninfo) error {
 		return err
 	}
 
-	SetCookie(c, signedToken)
+	SetCookie(c, signedToken, expiresDuration)
 
 	return nil
 }
 
-func VerifyIDToken(idToken string) (*oauth2.Tokeninfo, error) {
+func VerifyIDToken(idToken string, googleClientID string) (*oauth2.Tokeninfo, error) {
 	ctx := context.Background()
 	oauth2Service, err := oauth2.NewService(ctx, option.WithoutAuthentication())
 	if err != nil {
@@ -109,29 +104,9 @@ func VerifyIDToken(idToken string) (*oauth2.Tokeninfo, error) {
 		return nil, err
 	}
 
-	clientID := os.Getenv("GOOGLE_CLIENT_ID")
-	if tokenInfo.Audience != clientID {
-		return nil, fmt.Errorf("mismatching client ID, expected %s but got %s", clientID, tokenInfo.Audience)
+	if tokenInfo.Audience != googleClientID {
+		return nil, fmt.Errorf("mismatching client ID, expected %s but got %s", googleClientID, tokenInfo.Audience)
 	}
 
 	return tokenInfo, nil
-}
-
-func GetUserFromToken(c *fiber.Ctx) (models.User, error) {
-	//check token
-	token, err := CheckToken(c)
-
-	if err != nil {
-		return models.User{}, err
-	}
-
-	//get claim in correct format
-	claims := GetClaims(token)
-
-	var user models.User
-
-	//get user from claim
-	database.Connection.Where("id = ?", claims.Issuer).First(&user)
-
-	return user, nil
 }
