@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	module_helpers "github.com/VDiPaola/go-backend-module/helpers"
-	module_models "github.com/VDiPaola/go-backend-module/models"
+	module_helpers "github.com/VDiPaola/go-backend-module/module_helpers"
+	module_models "github.com/VDiPaola/go-backend-module/module_models"
 )
 
 func GenerateCode(length int, expirationLengthMins int64) module_models.Code {
